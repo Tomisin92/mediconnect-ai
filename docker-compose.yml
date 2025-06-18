@@ -1,0 +1,106 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    container_name: mediconnect_db
+    environment:
+      POSTGRES_DB: mediconnect
+      POSTGRES_USER: mediconnect_user
+      POSTGRES_PASSWORD: mediconnect_secure_password_2025
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mediconnect_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mediconnect_user -d mediconnect"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mediconnect_backend
+    environment:
+      - DATABASE_URL=postgresql://mediconnect_user:mediconnect_secure_password_2025@database:5432/mediconnect
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - mediconnect_network
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Streamlit Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mediconnect_frontend
+    environment:
+      - BACKEND_URL=http://backend:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    networks:
+      - mediconnect_network
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+
+  # pgAdmin for Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: mediconnect_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@mediconnect.ai
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - database
+    networks:
+      - mediconnect_network
+    restart: unless-stopped
+
+  # Redis for Caching (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: mediconnect_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - mediconnect_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  mediconnect_network:
+    driver: bridge
