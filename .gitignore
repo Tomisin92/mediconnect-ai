@@ -1,4 +1,11 @@
+# Add to .gitignore
+echo "
+# Environment files with secrets
 .env
 __pycache__/
 *.pyc
 .DS_Store
+backend/.env
+*.env.local
+*.env.production
+" >> .gitignore
