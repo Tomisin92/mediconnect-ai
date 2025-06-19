@@ -1,3 +1,4 @@
+
 # import streamlit as st
 # import openai
 # import json
@@ -64,7 +65,12 @@
 #         "debug_info": "Debug Information",
 #         "request_data": "Request Data",
 #         "response_data": "Response Data",
-#         "final_diagnosis": "📋 Final Medical Assessment"
+#         "final_diagnosis": "📋 Final Medical Assessment",
+#         "conversation_history": "💬 Conversation History",
+#         "initial_greeting": "Hello! I'm Dr. MediConnect AI. Please describe the patient's symptoms and I'll provide a comprehensive diagnosis.",
+#         "question_symptoms": "What symptoms is the patient experiencing?",
+#         "question_when_started": "When did these symptoms start?",
+#         "question_severity": "How severe are the symptoms?"
 #     },
 #     "Hausa": {
 #         "title": "🏥 MediConnect AI",
@@ -109,7 +115,12 @@
 #         "debug_info": "Bayanan Debug",
 #         "request_data": "Bayanan Buƙata",
 #         "response_data": "Bayanan Amsa",
-#         "final_diagnosis": "📋 Cikakkiyar Kimantawa ta Likitanci"
+#         "final_diagnosis": "📋 Cikakkiyar Kimantawa ta Likitanci",
+#         "conversation_history": "💬 Tarihin Zance",
+#         "initial_greeting": "Sannu! Ni ne Dokta MediConnect AI. Don Allah ka bayyana alamun majinyaci zan ba da cikakkiyar ganewar asali.",
+#         "question_symptoms": "Wane alamomi majinyaci yake fuskanta?",
+#         "question_when_started": "Yaushe waɗannan alamun suka fara?",
+#         "question_severity": "Yaya tsananin alamun?"
 #     },
 #     "Yoruba": {
 #         "title": "🏥 MediConnect AI",
@@ -154,7 +165,12 @@
 #         "debug_info": "Alaye Debug",
 #         "request_data": "Data Ibeere",
 #         "response_data": "Data Idahun",
-#         "final_diagnosis": "📋 Iṣiro Ilera Pipe"
+#         "final_diagnosis": "📋 Iṣiro Ilera Pipe",
+#         "conversation_history": "💬 Itan Ibaraenisoro",
+#         "initial_greeting": "Bawo! Emi ni Dokita MediConnect AI. Jọwọ ṣapejuwe awon ami aisan alaisan, emi yoo fun yin ni iwadii pipe.",
+#         "question_symptoms": "Awon ami aisan wo ni alaisan n ni?",
+#         "question_when_started": "Nigbati wo ni awon ami aisan bẹrẹ?",
+#         "question_severity": "Bawo ni awon ami aisan ṣe le to?"
 #     },
 #     "Igbo": {
 #         "title": "🏥 MediConnect AI",
@@ -199,7 +215,12 @@
 #         "debug_info": "Ozi Debug",
 #         "request_data": "Data Arịrịọ",
 #         "response_data": "Data Nzaghachi",
-#         "final_diagnosis": "📋 Nyocha Ahụike Zuru Ezu"
+#         "final_diagnosis": "📋 Nyocha Ahụike Zuru Ezu",
+#         "conversation_history": "💬 Akụkọ Mkparịta Ụka",
+#         "initial_greeting": "Ndewo! Abụ m Dọkịta MediConnect AI. Biko kọwaa ihe mgbaàmà onye ọrịa, m ga-enye gị nchọpụta zuru ezu.",
+#         "question_symptoms": "Kedu ihe mgbaàmà onye ọrịa na-enwe?",
+#         "question_when_started": "Oleizi ka ihe mgbaàmà ndị a malitere?",
+#         "question_severity": "Kedu ka ihe mgbaàmà ndị ahụ si sie ike?"
 #     }
 # }
 
@@ -459,44 +480,23 @@
 #         return fallback_questions.get(language, fallback_questions["english"])
 
 # def start_new_consultation(language):
-#     """Start a new consultation with direct OpenAI"""
+#     """Start a new consultation with direct OpenAI - Fixed language support"""
 #     import uuid
 #     consultation_id = str(uuid.uuid4())
     
-#     initial_prompt = {
-#         "english": "Hello! I'm Dr. MediConnect AI. Please describe the patient's symptoms and I'll provide a comprehensive diagnosis.",
-#         "hausa": "Sannu! Ni ne Dokta MediConnect AI. Don Allah ka bayyana alamun majinyaci zan ba da cikakkiyar ganewar asali.",
-#         "yoruba": "Bawo! Emi ni Dokita MediConnect AI. Jọwọ ṣapejuwe awon ami aisan alaisan, emi yoo fun yin ni iwadii pipe.",
-#         "igbo": "Ndewo! Abụ m Dọkịta MediConnect AI. Biko kọwaa ihe mgbaàmà onye ọrịa, m ga-enye gị nchọpụta zuru ezu."
-#     }
+#     # Get initial greeting and questions using the get_text function
+#     initial_greeting = get_text("initial_greeting", language)
     
-#     initial_questions = {
-#         "english": [
-#             "What symptoms is the patient experiencing?",
-#             "When did these symptoms start?", 
-#             "How severe are the symptoms?"
-#         ],
-#         "hausa": [
-#             "Wane alamomi majinyaci yake fuskanta?",
-#             "Yaushe waɗannan alamun suka fara?",
-#             "Yaya tsananin alamun?"
-#         ],
-#         "yoruba": [
-#             "Awon ami aisan wo ni alaisan n ni?",
-#             "Nigbati wo ni awon ami aisan bẹrẹ?",
-#             "Bawo ni awon ami aisan ṣe le to?"
-#         ],
-#         "igbo": [
-#             "Kedu ihe mgbaàmà onye ọrịa na-enwe?",
-#             "Oleizi ka ihe mgbaàmà ndị a malitere?",
-#             "Kedu ka ihe mgbaàmà ndị ahụ si sie ike?"
-#         ]
-#     }
+#     initial_questions = [
+#         get_text("question_symptoms", language),
+#         get_text("question_when_started", language),
+#         get_text("question_severity", language)
+#     ]
     
 #     return {
 #         "consultation_id": consultation_id,
-#         "ai_response": initial_prompt.get(language, initial_prompt["english"]),
-#         "questions": initial_questions.get(language, initial_questions["english"]),
+#         "ai_response": initial_greeting,
+#         "questions": initial_questions,
 #         "status": "consultation_started"
 #     }
 
@@ -524,24 +524,24 @@
     
 #     if should_diagnose:
 #         # Get diagnosis from OpenAI
-#         diagnosis = get_openai_diagnosis(conversation_text, language)
+#         diagnosis = get_openai_diagnosis(conversation_text, language.lower())
         
 #         response_texts = {
-#             'english': "Based on the symptoms described, here is my medical assessment:",
-#             'hausa': "Bisa ga alamun da aka bayyana, ga kimantawa ta likitanci:",
-#             'yoruba': "Ni ibamu lori awon ami aisan ti a so, eyi ni iṣiro mi ti ilera:",
-#             'igbo': "Dabere na ihe mgbaàmà akọwara, nke a bụ nyocha ahụike m:"
+#             'English': "Based on the symptoms described, here is my medical assessment:",
+#             'Hausa': "Bisa ga alamun da aka bayyana, ga kimantawa ta likitanci:",
+#             'Yoruba': "Ni ibamu lori awon ami aisan ti a so, eyi ni iṣiro mi ti ilera:",
+#             'Igbo': "Dabere na ihe mgbaàmà akọwara, nke a bụ nyocha ahụike m:"
 #         }
         
 #         return {
 #             "type": "diagnosis",
-#             "ai_response": response_texts.get(language, response_texts['english']),
+#             "ai_response": response_texts.get(language, response_texts['English']),
 #             "diagnosis": diagnosis,
 #             "consultation_complete": True
 #         }
 #     else:
 #         # Get follow-up questions from OpenAI
-#         questions_data = get_openai_questions(conversation_text, language)
+#         questions_data = get_openai_questions(conversation_text, language.lower())
         
 #         return {
 #             "type": "questions",
@@ -559,7 +559,7 @@
 #     st.session_state.final_diagnosis = None
 
 # def display_conversation_history(language):
-#     """Display the conversation history in a chat-like format"""
+#     """Display the conversation history in a chat-like format with proper language support"""
 #     for i, turn in enumerate(st.session_state.conversation_history):
 #         if turn["type"] == "ai":
 #             with st.chat_message("assistant", avatar="🤖"):
@@ -573,6 +573,7 @@
                         
 #         else:  # user message
 #             with st.chat_message("user", avatar="👨‍⚕️"):
+#                 st.markdown(f"**{get_text('your_response', language)}**")
 #                 st.write(turn["content"])
 
 # def display_final_diagnosis(diagnosis, language):
@@ -721,7 +722,7 @@
     
 #     # Display conversation history
 #     if st.session_state.conversation_history:
-#         st.markdown("### 💬 Conversation History")
+#         st.markdown(f"### {get_text('conversation_history', selected_language)}")
 #         display_conversation_history(selected_language)
     
 #     # Check if consultation is complete (has diagnosis)
@@ -1564,31 +1565,53 @@ Respond in {language} with this exact JSON format:
             "clinical_reasoning": "Limited by system error"
         }
 
-def get_openai_questions(conversation_text, language="english"):
-    """Get follow-up questions directly from OpenAI"""
+def get_openai_questions(conversation_text, language="english", exchange_number=0):
+    """Get follow-up questions directly from OpenAI - All questions AI generated"""
     if not openai_client:
-        default_questions = {
-            "english": ["What is the patient's age?", "How long have symptoms been present?"],
-            "hausa": ["Menene shekarun majinyaci?", "Har yaushe alamun suka kasance?"],
-            "yoruba": ["Elo ni ọjọ ori alaisan?", "Elo ni awon ami aisan yi ti wa?"],
-            "igbo": ["Gịnị bụ afọ onye ọrịa?", "Ogologo oge ole ka ihe mgbaàmà ndị a nọrọla?"]
-        }
         return {
-            "questions": default_questions.get(language, default_questions["english"]),
-            "ai_response": "I need more information for accurate diagnosis."
+            "questions": ["OpenAI API not available - Please configure API key"],
+            "ai_response": "Cannot generate questions without OpenAI API access."
         }
     
-    question_prompt = f"""Based on this patient information: {conversation_text}
+    # Create context-aware prompts based on exchange number
+    question_contexts = {
+        0: "basic patient demographics, symptom onset, and initial presentation",
+        1: "medical history, current medications, and recent exposures or activities", 
+        2: "symptom severity, family medical history, and known allergies",
+        3: "associated symptoms, recent lifestyle changes, and functional impact"
+    }
+    
+    context = question_contexts.get(exchange_number, "additional clinical details for comprehensive assessment")
+    
+    question_prompt = f"""You are an expert medical doctor conducting a thorough consultation. Based on this patient information: 
 
-Ask 2 intelligent medical follow-up questions in {language} to gather essential diagnostic information.
+{conversation_text}
+
+This is consultation exchange number {exchange_number + 1}. Focus on gathering information about {context}.
+
+Generate 3-4 intelligent, specific medical follow-up questions in {language} that will help you make an accurate diagnosis. 
+
+Guidelines for this exchange:
+- Exchange 1: Focus on basic demographics (age, gender), timeline of symptoms, fever status, initial severity
+- Exchange 2: Explore past medical history, current medications, recent travel/exposures, lifestyle factors
+- Exchange 3: Assess symptom severity scales, family history, allergies, and red flag symptoms
+- Exchange 4: Investigate associated symptoms, functional impact, recent changes in health
+
+Make the questions:
+1. Clinically relevant and specific to the patient's presentation
+2. Progressive - building on previous answers
+3. Appropriate for the consultation stage
+4. Clear and easy to understand in {language}
 
 Respond with this exact JSON format:
 {{
     "questions": [
-        "Medical question 1 in {language}",
-        "Medical question 2 in {language}"
+        "Specific medical question 1 in {language}",
+        "Specific medical question 2 in {language}",
+        "Specific medical question 3 in {language}",
+        "Specific medical question 4 in {language}"
     ],
-    "ai_response": "Brief response in {language} explaining why you need this information"
+    "ai_response": "Professional medical response in {language} explaining why you need this specific information"
 }}"""
 
     try:
@@ -1597,41 +1620,80 @@ Respond with this exact JSON format:
             messages=[
                 {
                     "role": "system",
-                    "content": f"You are a medical doctor asking diagnostic questions in {language}. Respond only with JSON."
+                    "content": f"You are an expert medical doctor conducting consultations in {language}. Generate intelligent, context-specific diagnostic questions. Always ask 3-4 questions. Respond only with valid JSON."
                 },
                 {
                     "role": "user",
                     "content": question_prompt
                 }
             ],
+            temperature=0.4,  # Slightly higher for more varied questions
+            max_tokens=600,   # More tokens for detailed questions
+            response_format={ "type": "json_object" }
+        )
+        
+        ai_response = response.choices[0].message.content.strip()
+        questions_data = json.loads(ai_response)
+        
+        # Ensure we have questions
+        if not questions_data.get("questions") or len(questions_data["questions"]) == 0:
+            raise ValueError("No questions generated")
+            
+        # Ensure we have 3-4 questions
+        if len(questions_data["questions"]) < 3:
+            # If less than 3, ask OpenAI to generate more
+            return get_openai_questions_retry(conversation_text, language, exchange_number)
+            
+        return questions_data
+        
+    except Exception as e:
+        st.error(f"Error generating questions: {str(e)}")
+        # If OpenAI fails, try one more time with a simpler prompt
+        return get_openai_questions_retry(conversation_text, language, exchange_number)
+
+def get_openai_questions_retry(conversation_text, language, exchange_number):
+    """Retry with simpler prompt if first attempt fails"""
+    if not openai_client:
+        return {
+            "questions": ["OpenAI API not available"],
+            "ai_response": "Cannot generate questions without OpenAI API."
+        }
+    
+    simple_prompt = f"""Based on patient symptoms: {conversation_text}
+
+Ask 3 medical questions in {language} for consultation round {exchange_number + 1}.
+
+JSON format:
+{{
+    "questions": ["Question 1", "Question 2", "Question 3"],
+    "ai_response": "Brief explanation in {language}"
+}}"""
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[
+                {"role": "system", "content": f"Medical doctor asking questions in {language}. JSON only."},
+                {"role": "user", "content": simple_prompt}
+            ],
             temperature=0.3,
             max_tokens=400,
             response_format={ "type": "json_object" }
         )
         
-        ai_response = response.choices[0].message.content.strip()
-        return json.loads(ai_response)
+        return json.loads(response.choices[0].message.content.strip())
         
     except Exception as e:
-        fallback_questions = {
-            "english": {
-                "questions": ["What is the patient's age?", "How severe are the symptoms?"],
-                "ai_response": "I need additional information for diagnosis."
-            },
-            "hausa": {
-                "questions": ["Menene shekarun majinyaci?", "Yaya tsananin alamun?"],
-                "ai_response": "Ina bukatar ƙarin bayani don ganewar asali."
-            },
-            "yoruba": {
-                "questions": ["Elo ni ọjọ ori alaisan?", "Bawo ni awon ami aisan ṣe le to?"],
-                "ai_response": "Mo nilo alaye diẹ sii fun iwadii."
-            },
-            "igbo": {
-                "questions": ["Gịnị bụ afọ onye ọrịa?", "Kedu ka ihe mgbaàmà ndị ahụ si sie ike?"],
-                "ai_response": "Achọrọ m ozi ọzọ maka nchọpụta."
-            }
+        # Last resort - return a basic structure
+        st.error(f"OpenAI question generation failed: {str(e)}")
+        return {
+            "questions": [
+                f"Could not generate questions - OpenAI error: {str(e)[:50]}...",
+                "Please check your OpenAI API key and try again",
+                "Or restart the consultation"
+            ],
+            "ai_response": "Technical error occurred. Please restart consultation."
         }
-        return fallback_questions.get(language, fallback_questions["english"])
 
 def start_new_consultation(language):
     """Start a new consultation with direct OpenAI - Fixed language support"""
@@ -1655,7 +1717,7 @@ def start_new_consultation(language):
     }
 
 def continue_consultation(consultation_id, user_input, language, has_image=False, image_description=""):
-    """Continue consultation with direct OpenAI"""
+    """Continue consultation with direct OpenAI - Enhanced with more follow-up questions"""
     
     # Get conversation history
     conversation_text = ""
@@ -1674,7 +1736,8 @@ def continue_consultation(consultation_id, user_input, language, has_image=False
     user_exchanges = len([turn for turn in st.session_state.conversation_history if turn["type"] == "user"])
     
     # Decide whether to ask questions or provide diagnosis
-    should_diagnose = user_exchanges >= 1  # Diagnose after 1-2 exchanges
+    # Ask 3-4 rounds of questions before diagnosing
+    should_diagnose = user_exchanges >= 3  # Diagnose after 3-4 exchanges
     
     if should_diagnose:
         # Get diagnosis from OpenAI
@@ -1695,7 +1758,7 @@ def continue_consultation(consultation_id, user_input, language, has_image=False
         }
     else:
         # Get follow-up questions from OpenAI
-        questions_data = get_openai_questions(conversation_text, language.lower())
+        questions_data = get_openai_questions(conversation_text, language.lower(), user_exchanges)
         
         return {
             "type": "questions",
