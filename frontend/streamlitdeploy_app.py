@@ -310,7 +310,7 @@ def get_openai_diagnosis(conversation_text, language="english"):
             "primary_diagnosis": "OpenAI API key not configured",
             "confidence": 0.0,
             "urgency": "MODERATE",
-            "recommendations": ["Please configure OpenAI API key in .env file or Streamlit secrets"],
+            "recommendations": ["Please configure OpenAI API key in Streamlit secrets"],
             "clinical_reasoning": "API key required"
         }
     
@@ -459,56 +459,96 @@ Respond with this exact JSON format:
         return fallback_questions.get(language, fallback_questions["english"])
 
 def start_new_consultation(language):
-    """Start a new consultation with the backend"""
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/start_consultation",
-            params={"language": language.lower()},
-            timeout=10
-        )
-        if response.status_code == 200:
-            return True, response.json()
-        else:
-            return False, {"error": f"HTTP {response.status_code}: {response.text}"}
-    except requests.exceptions.RequestException as e:
-        return False, {"error": f"Connection error: {str(e)}"}
+    """Start a new consultation with direct OpenAI"""
+    import uuid
+    consultation_id = str(uuid.uuid4())
+    
+    initial_prompt = {
+        "english": "Hello! I'm Dr. MediConnect AI. Please describe the patient's symptoms and I'll provide a comprehensive diagnosis.",
+        "hausa": "Sannu! Ni ne Dokta MediConnect AI. Don Allah ka bayyana alamun majinyaci zan ba da cikakkiyar ganewar asali.",
+        "yoruba": "Bawo! Emi ni Dokita MediConnect AI. Jọwọ ṣapejuwe awon ami aisan alaisan, emi yoo fun yin ni iwadii pipe.",
+        "igbo": "Ndewo! Abụ m Dọkịta MediConnect AI. Biko kọwaa ihe mgbaàmà onye ọrịa, m ga-enye gị nchọpụta zuru ezu."
+    }
+    
+    initial_questions = {
+        "english": [
+            "What symptoms is the patient experiencing?",
+            "When did these symptoms start?", 
+            "How severe are the symptoms?"
+        ],
+        "hausa": [
+            "Wane alamomi majinyaci yake fuskanta?",
+            "Yaushe waɗannan alamun suka fara?",
+            "Yaya tsananin alamun?"
+        ],
+        "yoruba": [
+            "Awon ami aisan wo ni alaisan n ni?",
+            "Nigbati wo ni awon ami aisan bẹrẹ?",
+            "Bawo ni awon ami aisan ṣe le to?"
+        ],
+        "igbo": [
+            "Kedu ihe mgbaàmà onye ọrịa na-enwe?",
+            "Oleizi ka ihe mgbaàmà ndị a malitere?",
+            "Kedu ka ihe mgbaàmà ndị ahụ si sie ike?"
+        ]
+    }
+    
+    return {
+        "consultation_id": consultation_id,
+        "ai_response": initial_prompt.get(language, initial_prompt["english"]),
+        "questions": initial_questions.get(language, initial_questions["english"]),
+        "status": "consultation_started"
+    }
 
 def continue_consultation(consultation_id, user_input, language, has_image=False, image_description=""):
-    """Continue an existing consultation"""
-    try:
-        request_data = {
-            "consultation_id": consultation_id,
-            "user_input": user_input,
-            "language": language.lower(),
-            "has_image": has_image,
-            "image_description": image_description
+    """Continue consultation with direct OpenAI"""
+    
+    # Get conversation history
+    conversation_text = ""
+    for turn in st.session_state.conversation_history:
+        if turn["type"] == "user":
+            conversation_text += f"Patient: {turn['content']} "
+    
+    # Add current input
+    conversation_text += f"Patient: {user_input} "
+    
+    # Add image info if present
+    if has_image and image_description:
+        conversation_text += f"[Medical Image: {image_description}] "
+    
+    # Count user exchanges
+    user_exchanges = len([turn for turn in st.session_state.conversation_history if turn["type"] == "user"])
+    
+    # Decide whether to ask questions or provide diagnosis
+    should_diagnose = user_exchanges >= 1  # Diagnose after 1-2 exchanges
+    
+    if should_diagnose:
+        # Get diagnosis from OpenAI
+        diagnosis = get_openai_diagnosis(conversation_text, language)
+        
+        response_texts = {
+            'english': "Based on the symptoms described, here is my medical assessment:",
+            'hausa': "Bisa ga alamun da aka bayyana, ga kimantawa ta likitanci:",
+            'yoruba': "Ni ibamu lori awon ami aisan ti a so, eyi ni iṣiro mi ti ilera:",
+            'igbo': "Dabere na ihe mgbaàmà akọwara, nke a bụ nyocha ahụike m:"
         }
         
-        if st.session_state.debug_mode:
-            st.write(f"🔍 **{get_text('request_data', language)}:**")
-            st.json(request_data)
+        return {
+            "type": "diagnosis",
+            "ai_response": response_texts.get(language, response_texts['english']),
+            "diagnosis": diagnosis,
+            "consultation_complete": True
+        }
+    else:
+        # Get follow-up questions from OpenAI
+        questions_data = get_openai_questions(conversation_text, language)
         
-        response = requests.post(
-            f"{API_BASE_URL}/continue_consultation",
-            json=request_data,
-            timeout=15
-        )
-        
-        if st.session_state.debug_mode:
-            st.write(f"🔍 **{get_text('response_data', language)}:**")
-            st.write(f"Status Code: {response.status_code}")
-            if response.status_code == 200:
-                st.json(response.json())
-            else:
-                st.error(f"Error response: {response.text}")
-        
-        if response.status_code == 200:
-            return True, response.json()
-        else:
-            return False, {"error": f"HTTP {response.status_code}: {response.text}"}
-            
-    except requests.exceptions.RequestException as e:
-        return False, {"error": f"Connection error: {str(e)}"}
+        return {
+            "type": "questions",
+            "ai_response": questions_data["ai_response"],
+            "questions": questions_data["questions"],
+            "consultation_continues": True
+        }
 
 def reset_consultation():
     """Reset consultation state"""
@@ -620,8 +660,8 @@ with st.sidebar:
 if OPENAI_API_KEY:
     st.success("✅ AI Medical Assistant Ready - OpenAI Direct Mode!")
 else:
-    st.error("❌ OpenAI API key not configured. Please add OPENAI_API_KEY to .env file or Streamlit secrets.")
-    st.info("💡 Add your OpenAI API key to use the medical AI system.")
+    st.error("❌ OpenAI API key not configured. Please add OPENAI_API_KEY to Streamlit secrets.")
+    st.info("💡 Go to app settings → Secrets → Add: OPENAI_API_KEY = \"your-key-here\"")
 
 # Main consultation interface
 st.header(get_text("consultation_header", selected_language))
@@ -640,22 +680,19 @@ if not st.session_state.consultation_active:
             key="start_consultation_main"
         ):
             with st.spinner(get_text("processing", selected_language)):
-                success, data = start_new_consultation(selected_language)
+                data = start_new_consultation(selected_language)
                 
-                if success:
-                    st.session_state.consultation_id = data["consultation_id"]
-                    st.session_state.consultation_active = True
-                    st.session_state.conversation_history = [{
-                        "type": "ai",
-                        "content": data["ai_response"],
-                        "questions": data.get("questions", [])
-                    }]
-                    st.session_state.total_consultations += 1
-                    st.session_state.current_questions = len(data.get("questions", []))
-                    st.session_state.final_diagnosis = None  # Reset diagnosis
-                    st.rerun()
-                else:
-                    st.error(f"{get_text('error_occurred', selected_language)}: {data.get('error', 'Unknown error')}")
+                st.session_state.consultation_id = data["consultation_id"]
+                st.session_state.consultation_active = True
+                st.session_state.conversation_history = [{
+                    "type": "ai",
+                    "content": data["ai_response"],
+                    "questions": data.get("questions", [])
+                }]
+                st.session_state.total_consultations += 1
+                st.session_state.current_questions = len(data.get("questions", []))
+                st.session_state.final_diagnosis = None  # Reset diagnosis
+                st.rerun()
     
     with col2:
         if st.button("🔄 Reset All Data", key="reset_all_data_main"):
@@ -745,8 +782,8 @@ if st.session_state.consultation_active:
                         if uploaded_image:
                             image_description = f"Medical image uploaded: {uploaded_image.name}. This appears to be a medical image that should be considered in the diagnosis."
                         
-                        # Send to backend
-                        success, data = continue_consultation(
+                        # Continue consultation
+                        data = continue_consultation(
                             st.session_state.consultation_id,
                             user_input,
                             selected_language,
@@ -754,34 +791,28 @@ if st.session_state.consultation_active:
                             image_description
                         )
                         
-                        if success:
-                            if data["type"] == "questions":
-                                # More questions
-                                st.session_state.conversation_history.append({
-                                    "type": "ai",
-                                    "content": data["ai_response"],
-                                    "questions": data.get("questions", [])
-                                })
-                                st.session_state.total_questions += len(data.get("questions", []))
-                                st.session_state.current_questions = len(data.get("questions", []))
-                            else:
-                                # Diagnosis ready
-                                st.session_state.conversation_history.append({
-                                    "type": "ai",
-                                    "content": data["ai_response"],
-                                    "diagnosis": data.get("diagnosis")
-                                })
-                                st.session_state.consultation_active = False
-                                st.session_state.total_diagnoses += 1
-                                # Store final diagnosis for display
-                                st.session_state.final_diagnosis = data.get("diagnosis")
-                                
-                            st.rerun()
+                        if data["type"] == "questions":
+                            # More questions
+                            st.session_state.conversation_history.append({
+                                "type": "ai",
+                                "content": data["ai_response"],
+                                "questions": data.get("questions", [])
+                            })
+                            st.session_state.total_questions += len(data.get("questions", []))
+                            st.session_state.current_questions = len(data.get("questions", []))
                         else:
-                            st.error(f"{get_text('error_occurred', selected_language)}: {data.get('error', 'Unknown error')}")
-                            if st.session_state.debug_mode:
-                                st.write("🔍 **Error Details:**")
-                                st.code(traceback.format_exc())
+                            # Diagnosis ready
+                            st.session_state.conversation_history.append({
+                                "type": "ai",
+                                "content": data["ai_response"],
+                                "diagnosis": data.get("diagnosis")
+                            })
+                            st.session_state.consultation_active = False
+                            st.session_state.total_diagnoses += 1
+                            # Store final diagnosis for display
+                            st.session_state.final_diagnosis = data.get("diagnosis")
+                            
+                        st.rerun()
         
         with col2:
             if st.button(get_text("new_consultation", selected_language), key="new_consultation_during_active"):
@@ -842,17 +873,17 @@ with st.sidebar:
         st.markdown("""
         **Core Capabilities:**
         
-        • **High diagnostic accuracy** (verified with real consultations)
+        • **High diagnostic accuracy** (powered by GPT-4)
         
         • **4 Nigerian languages:** English, Hausa, Yoruba, Igbo with medical terminology
         
         • **Interactive consultation:** 2-3 intelligent questions maximum
         
-        • **Medical image analysis:** X-ray interpretation, skin condition diagnosis, wound assessment, ultrasound analysis
+        • **Medical image analysis:** X-ray interpretation, skin condition diagnosis, wound assessment
         
         • **Comprehensive diagnosis:** 4-5 detailed recommendations per case
         
-        • **Production-ready:** FastAPI backend, professional interface
+        • **Cloud-ready:** No backend required, direct OpenAI integration
         """)
         
         st.markdown("**Enhanced Diagnosis Results:**")
@@ -975,17 +1006,16 @@ with st.sidebar:
             if st.button(f"📝 {scenario}", key=f"scenario_{i}"):
                 if not st.session_state.consultation_active:
                     # Start consultation first
-                    success, data = start_new_consultation(selected_language)
-                    if success:
-                        st.session_state.consultation_id = data["consultation_id"]
-                        st.session_state.consultation_active = True
-                        st.session_state.conversation_history = [{
-                            "type": "ai",
-                            "content": data["ai_response"],
-                            "questions": data.get("questions", [])
-                        }]
-                        st.session_state.total_consultations += 1
-                        st.session_state.final_diagnosis = None
+                    data = start_new_consultation(selected_language)
+                    st.session_state.consultation_id = data["consultation_id"]
+                    st.session_state.consultation_active = True
+                    st.session_state.conversation_history = [{
+                        "type": "ai",
+                        "content": data["ai_response"],
+                        "questions": data.get("questions", [])
+                    }]
+                    st.session_state.total_consultations += 1
+                    st.session_state.final_diagnosis = None
                     
                 # Add scenario as user input
                 if st.session_state.consultation_active:
@@ -995,31 +1025,30 @@ with st.sidebar:
                     })
                     
                     # Continue consultation with scenario
-                    success, data = continue_consultation(
+                    data = continue_consultation(
                         st.session_state.consultation_id,
                         scenario,
                         selected_language
                     )
                     
-                    if success:
-                        if data["type"] == "questions":
-                            st.session_state.conversation_history.append({
-                                "type": "ai",
-                                "content": data["ai_response"],
-                                "questions": data.get("questions", [])
-                            })
-                            st.session_state.total_questions += len(data.get("questions", []))
-                        else:
-                            st.session_state.conversation_history.append({
-                                "type": "ai",
-                                "content": data["ai_response"],
-                                "diagnosis": data.get("diagnosis")
-                            })
-                            st.session_state.consultation_active = False
-                            st.session_state.total_diagnoses += 1
-                            st.session_state.final_diagnosis = data.get("diagnosis")
-                        
-                        st.rerun()
+                    if data["type"] == "questions":
+                        st.session_state.conversation_history.append({
+                            "type": "ai",
+                            "content": data["ai_response"],
+                            "questions": data.get("questions", [])
+                        })
+                        st.session_state.total_questions += len(data.get("questions", []))
+                    else:
+                        st.session_state.conversation_history.append({
+                            "type": "ai",
+                            "content": data["ai_response"],
+                            "diagnosis": data.get("diagnosis")
+                        })
+                        st.session_state.consultation_active = False
+                        st.session_state.total_diagnoses += 1
+                        st.session_state.final_diagnosis = data.get("diagnosis")
+                    
+                    st.rerun()
         
         st.markdown("---")
         st.markdown("**📸 Medical Imaging AI**")
@@ -1050,7 +1079,7 @@ st.markdown("""
     <h4>🏥 MediConnect AI - Bridging Healthcare Gaps in Rural Nigeria</h4>
     <p>Interactive AI-powered medical consultations in local languages</p>
     <p><strong>Languages Supported:</strong> English • Hausa • Yoruba • Igbo</p>
-    <p><strong>Features:</strong> Smart Questioning • Medical Image Analysis • Comprehensive Diagnosis • Cultural Context</p>
+    <p><strong>Features:</strong> Smart Questioning • Medical Image Analysis • Comprehensive Diagnosis • Direct OpenAI</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1089,7 +1118,7 @@ if st.session_state.debug_mode:
             st.write(f"Key preview: {OPENAI_API_KEY[:8]}...")
         else:
             st.error("❌ OpenAI API Key Missing")
-            st.info("Add OPENAI_API_KEY to .env file or Streamlit secrets")
+            st.info("Add OPENAI_API_KEY to Streamlit secrets")
     
     # Manual OpenAI testing section
     with st.expander("Manual OpenAI Testing", expanded=False):
@@ -1113,10 +1142,7 @@ if st.session_state.debug_mode:
                     if "insufficient_quota" in str(e).lower():
                         st.info("💡 This usually means you need to add billing to your OpenAI account")
                     elif "invalid_api_key" in str(e).lower():
-                        st.info("💡 Check your API key in .env file")
-
-# Performance monitoring - SIMPLIFIED
-# No backend checking needed
+                        st.info("💡 Check your API key in Streamlit secrets")
 
 # Final status display at bottom
 st.markdown("---")
